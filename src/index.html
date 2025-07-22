@@ -1,32 +1,897 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <link rel="stylesheet" href="styles.css" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus App</title>
-        <script type="module" src="/main.js" defer></script>
-    </head>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>图片颜色提取器</title>
 
-    <body>
-        <main class="container">
-            <h1>Welcome to PakePlus</h1>
-            <form class="row" id="greet-form">
-                <input id="inputValue" placeholder="Enter a something..." />
-            </form>
-            <div class="resultBox">
-                <span>result: </span>
-                <span id="result"></span>
-            </div>
-            <div class="invokeBox">
-                <button id="openUrl">open_url_browser</button>
-                <button id="openUrlNew">open_url_new</button>
-                <button id="runCommand">run_command</button>
-                <button id="downloadFile">download_file</button>
-                <button id="getExeDir">get_exe_dir</button>
-                <button id="getEnvVar">get_env_var</button>
-                <button id="findPort">find_port</button>
-            </div>
-        </main>
-    </body>
+  <!-- ViewerJS CSS -->
+<link rel="stylesheet" href="./viewerjs-1.11.7/viewer.min.css">
+<script src="./viewerjs-1.11.7/viewer.min.js"></script>
+  <style>
+    :root {
+      --bg-color: #f8f9fa;
+      --text-color: #333;
+      --card-bg: #fff;
+      --border-color: #ddd;
+      --primary-color: #409EFF;
+      --primary-hover: #307ae0;
+    }
+    /* 自动跟随系统深色 */
+    @media (prefers-color-scheme: dark) {
+      body:not(.dark) {
+        --bg-color: #121212;
+        --text-color: #eee;
+        --card-bg: #1e1e1e;
+        --border-color: #333;
+        --primary-color: #409EFF;
+        --primary-hover: #66b1ff;
+      }
+    }
+    /* 手动强制暗模式，优先级最高 */
+    body.dark {
+      --bg-color: #121212;
+      --text-color: #eee;
+      --card-bg: #1e1e1e;
+      --border-color: #333;
+      --primary-color: #409EFF;
+      --primary-hover: #66b1ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-family: "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      padding: 20px;
+      margin: 0 auto;
+      max-width: 900px;
+    }
+
+    h2 {
+      text-align: justify;
+      margin-bottom: 30px;
+    }
+
+    /* 夜间模式切换按钮：图标形式 */
+    #toggleDarkBtn {
+      font-size: 24px;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      line-height: 1;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      float: right;
+      margin-bottom: 0;
+      background: var(--primary-color);
+      color: white;
+      user-select: none;
+      transition: background-color 0.3s;
+    }
+    #toggleDarkBtn:hover {
+      background: var(--primary-hover);
+    }
+
+    .upload-area {
+      border: 2px dashed var(--border-color);
+      background: var(--card-bg);
+      padding: 50px 20px;
+      text-align: center;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: border-color 0.3s;
+      margin-bottom: 30px;
+      user-select: none;
+    }
+
+    .upload-area:hover {
+      border-color: var(--primary-color);
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .url-input-area {
+      text-align: center;
+      margin-bottom: 20px;
+      clear: both;
+    }
+
+    .url-input-area input {
+      width: 70%;
+      max-width: 500px;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--card-bg);
+      color: var(--text-color);
+    }
+
+    .url-input-area input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+
+    .url-input-area button {
+      padding: 8px 14px;
+      margin-left: 10px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .url-input-area button:hover {
+      background: var(--primary-hover);
+    }
+
+    .image-container {
+      padding: 20px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      margin-bottom: 30px;
+      text-align: center;
+    }
+
+    .image-container img {
+      max-width: 100%;
+      max-height: 400px;
+      display: inline-block;
+      border-radius: 10px;
+      cursor: zoom-in;
+    }
+
+    .section {
+      margin-top: 30px;
+    }
+
+    .color-section-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+
+    .color-block {
+      width: 120px;
+      margin: 10px 10px 20px 0;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-weight: 500;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      transition: transform 0.2s;
+      user-select: none;
+      background-clip: padding-box;
+      display: inline-block;
+      vertical-align: top;
+      text-align: center;
+      color: white; /* 默认色，后面会动态覆盖 */
+    }
+    .color-block:hover {
+      transform: scale(1.05);
+    }
+    .color-block div {
+      line-height: 1.3;
+      font-size: 12px;
+      user-select: text;
+    }
+
+    .count-control {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .count-control input {
+      width: 60px;
+      padding: 6px;
+      text-align: center;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--card-bg);
+      color: var(--text-color);
+    }
+
+    .count-control button {
+      padding: 6px 12px;
+      margin-left: 10px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .count-control button:hover {
+      background: var(--primary-hover);
+    }
+
+    button {
+      padding: 6px 12px;
+      margin-right: 0;
+      border-radius: 6px;
+      border: none;
+      background: var(--primary-color);
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: var(--primary-hover);
+    }
+
+    /* 调色板容器，弹性布局 */
+    .palette {
+      display: flex;
+      flex-wrap: wrap;
+	  justify-content: center;
+    }
+
+    /* 历史记录区域 */
+    .history-section {
+      margin-top: 40px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      clear: both;
+    }
+
+    #historyList {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .history-item {
+      width: 140px;
+      background: var(--bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 8px;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      user-select: none;
+      transition: transform 0.15s;
+      text-align: center;
+    }
+
+    .history-item:hover {
+      transform: scale(1.05);
+    }
+
+    .history-item img {
+      width: 100%;
+      height: 80px;
+      object-fit: contain;
+      border-radius: 6px;
+      margin-bottom: 6px;
+    }
+
+    .history-palette {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      justify-content: center;
+    }
+
+    .history-color-block {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+    }
+	
+	.export-buttons {
+		margin-top: 10px;
+		display: flex;
+		gap: 10px;
+	}
+	
+	.export-buttons button {
+		margin-bottom: 10px;
+	}
+
+    /* 响应式适配 */
+    @media screen and (max-width: 600px) {
+      .url-input-area input {
+        width: 65%;
+      }
+
+      .color-block {
+        width: 90px;
+        padding: 6px 8px;
+        font-size: 11px;
+      }
+
+      .upload-area {
+        padding: 30px 15px;
+        font-size: 16px;
+      }
+
+      #historyList {
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button id="toggleDarkBtn" aria-label="切换夜间模式" title="切换夜间模式">🌙</button>
+
+  <h2>图片颜色提取器</h2>
+
+  <!-- 上传区域 -->
+  <div class="upload-area" id="uploadArea" tabindex="0" aria-label="点击或拖放图片上传">
+    点击或拖放图片到此区域上传
+    <input type="file" id="fileInput" accept="image/*" />
+  </div>
+
+  <!-- 远程图片链接输入 -->
+  <div class="url-input-area">
+    <input
+      type="text"
+      id="imageUrlInput"
+      placeholder="粘贴网络图片链接（支持 http/https）"
+      aria-label="网络图片链接输入框"
+    />
+    <button id="loadUrlBtn">加载图片</button>
+  </div>
+
+  <!-- 图片预览 -->
+  <div class="image-container" id="imageContainer" style="display:none;">
+    <img id="previewImage" crossorigin="anonymous" alt="图片预览" />
+  </div>
+
+  <!-- 调色板数量设置 -->
+  <div class="count-control" id="countSection" style="display:none;">
+    <label for="paletteCountInput">调色板数量: </label>
+    <input
+      type="number"
+      id="paletteCountInput"
+      min="1"
+      max="64"
+      value="16"
+      aria-label="调色板颜色数量"
+    />
+    <button id="extractBtn">提取颜色</button>
+  </div>
+
+  <!-- 主色显示 -->
+  <div class="color-section-box" id="mainColorSection" style="display:none;">
+    <h3>主色</h3>
+    <div id="mainColor"></div>
+  </div>
+
+  <!-- 调色板显示 -->
+  <div class="color-section-box" id="paletteSection" style="display:none;">
+    <h3>调色板</h3>
+    <div class="palette" id="palette"></div>
+    <div class="export-buttons">
+      <button id="exportJsonBtn">导出 JSON</button>
+      <button id="exportPngBtn">导出 PNG</button>
+      <button id="exportSvgBtn">导出 SVG</button>
+    </div>
+  </div>
+
+  <!-- 历史记录 -->
+  <div class="history-section">
+    <h3>历史记录</h3>
+    <button id="clearHistoryBtn">清除历史</button>
+    <div id="historyList"></div>
+  </div>
+
+  <!-- color-thief -->
+<script src="./color-thief-2.6.0/color-thief.min.js"></script>
+
+  <script>
+    const uploadArea = document.getElementById("uploadArea");
+    const fileInput = document.getElementById("fileInput");
+    const previewImage = document.getElementById("previewImage");
+    const imageContainer = document.getElementById("imageContainer");
+    const countSection = document.getElementById("countSection");
+    const paletteCountInput = document.getElementById("paletteCountInput");
+    const extractBtn = document.getElementById("extractBtn");
+    const mainColorSection = document.getElementById("mainColorSection");
+    const mainColorDiv = document.getElementById("mainColor");
+    const paletteSection = document.getElementById("paletteSection");
+    const paletteDiv = document.getElementById("palette");
+    const imageUrlInput = document.getElementById("imageUrlInput");
+    const loadUrlBtn = document.getElementById("loadUrlBtn");
+    const exportJsonBtn = document.getElementById("exportJsonBtn");
+    const exportPngBtn = document.getElementById("exportPngBtn");
+    const exportSvgBtn = document.getElementById("exportSvgBtn");
+    const toggleDarkBtn = document.getElementById("toggleDarkBtn");
+    const historyListEl = document.getElementById("historyList");
+    const clearHistoryBtn = document.getElementById("clearHistoryBtn");
+
+    let viewer = null;
+    let palette = [];
+    let mainColor = null;
+    const colorThief = new ColorThief();
+
+    // === 夜间模式按钮和逻辑 ===
+    function updateButtonIcon() {
+      const isDark = document.body.classList.contains("dark");
+      toggleDarkBtn.textContent = isDark ? "☀️" : "🌙";
+      toggleDarkBtn.title = isDark ? "切换到日间模式" : "切换到夜间模式";
+    }
+
+    toggleDarkBtn.addEventListener("click", () => {
+      document.body.classList.toggle("dark");
+      const isDark = document.body.classList.contains("dark");
+      localStorage.setItem("darkMode", isDark);
+      updateButtonIcon();
+    });
+
+    // 初始读取夜间模式设置
+    if (localStorage.getItem("darkMode") === "true") {
+      document.body.classList.add("dark");
+    } else if (localStorage.getItem("darkMode") === "false") {
+      document.body.classList.remove("dark");
+    }
+    updateButtonIcon();
+
+    // === 亮度判断函数（决定文字颜色） ===
+    function getLuminance(r, g, b) {
+      const a = [r, g, b].map((v) => {
+        v /= 255;
+        return v <= 0.03928
+          ? v / 12.92
+          : Math.pow((v + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
+    }
+
+    function getTextColor(r, g, b) {
+      return getLuminance(r, g, b) > 0.5 ? "#000" : "#fff";
+    }
+
+    // === 工具函数：rgb数组转hex ===
+    function rgbToHex(r, g, b) {
+      return (
+        "#" +
+        [r, g, b]
+          .map((x) => {
+            const hex = x.toString(16);
+            return hex.length === 1 ? "0" + hex : hex;
+          })
+          .join("")
+      );
+    }
+
+    // === 工具函数：hex转rgb ===
+    function hexToRgb(hex) {
+      hex = hex.replace(/^#/, "");
+      if (hex.length === 3) {
+        hex = hex
+          .split("")
+          .map((x) => x + x)
+          .join("");
+      }
+      const num = parseInt(hex, 16);
+      return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+    }
+
+    // === 工具函数：rgb转HSV ===
+    function rgbToHsv(r, g, b) {
+      r /= 255;
+      g /= 255;
+      b /= 255;
+
+      const max = Math.max(r, g, b),
+        min = Math.min(r, g, b);
+      let h,
+        s,
+        v = max;
+
+      const d = max - min;
+      s = max === 0 ? 0 : d / max;
+
+      if (max === min) {
+        h = 0; // achromatic
+      } else {
+        switch (max) {
+          case r:
+            h = (g - b) / d + (g < b ? 6 : 0);
+            break;
+          case g:
+            h = (b - r) / d + 2;
+            break;
+          case b:
+            h = (r - g) / d + 4;
+            break;
+        }
+        h /= 6;
+      }
+
+      return [h * 360, s * 100, v * 100];
+    }
+
+    // === 工具函数：rgb转Lab ===
+    function rgbToXyz(r, g, b) {
+      r /= 255;
+      g /= 255;
+      b /= 255;
+
+      r = r > 0.04045 ? Math.pow((r + 0.055) / 1.055, 2.4) : r / 12.92;
+      g = g > 0.04045 ? Math.pow((g + 0.055) / 1.055, 2.4) : g / 12.92;
+      b = b > 0.04045 ? Math.pow((b + 0.055) / 1.055, 2.4) : b / 12.92;
+
+      const x = r * 0.4124 + g * 0.3576 + b * 0.1805;
+      const y = r * 0.2126 + g * 0.7152 + b * 0.0722;
+      const z = r * 0.0193 + g * 0.1192 + b * 0.9505;
+
+      return [x * 100, y * 100, z * 100];
+    }
+
+    function xyzToLab(x, y, z) {
+      const refX = 95.047,
+        refY = 100.0,
+        refZ = 108.883;
+
+      x /= refX;
+      y /= refY;
+      z /= refZ;
+
+      x = x > 0.008856 ? Math.pow(x, 1 / 3) : 7.787 * x + 16 / 116;
+      y = y > 0.008856 ? Math.pow(y, 1 / 3) : 7.787 * y + 16 / 116;
+      z = z > 0.008856 ? Math.pow(z, 1 / 3) : 7.787 * z + 16 / 116;
+
+      const L = 116 * y - 16;
+      const a = 500 * (x - y);
+      const b = 200 * (y - z);
+
+      return [L, a, b];
+    }
+
+    function rgbToLab(r, g, b) {
+      const [x, y, z] = rgbToXyz(r, g, b);
+      return xyzToLab(x, y, z);
+    }
+
+    // === 颜色渲染 ===
+    function renderMainColor(rgb) {
+      mainColorDiv.innerHTML = "";
+      const hex = rgbToHex(...rgb);
+      const textColor = getTextColor(...rgb);
+
+      const block = document.createElement("div");
+      block.className = "color-block";
+      block.style.backgroundColor = hex;
+      block.style.width = "200px";
+      block.style.margin = "0 auto";
+      block.style.color = textColor;
+
+      // 显示颜色值（HEX/RGB/HSV/Lab）
+      const hsv = rgbToHsv(...rgb);
+      const lab = rgbToLab(...rgb);
+
+      const infoDiv = document.createElement("div");
+      infoDiv.style.fontSize = "14px";
+      infoDiv.style.marginTop = "6px";
+      infoDiv.innerHTML =
+        `<div><b>HEX:</b> ${hex.toUpperCase()}</div>` +
+        `<div><b>RGB:</b> ${rgb.join(", ")}</div>` +
+        `<div><b>HSV:</b> ${hsv.map((v) => v.toFixed(1)).join(", ")}</div>` +
+        `<div><b>Lab:</b> ${lab.map((v) => v.toFixed(1)).join(", ")}</div>`;
+
+      block.appendChild(infoDiv);
+      mainColorDiv.appendChild(block);
+
+      // 点击复制主色HEX
+      block.title = "点击复制主色 HEX";
+      block.style.cursor = "pointer";
+      block.onclick = () => {
+        navigator.clipboard.writeText(hex.toUpperCase());
+        alert(`已复制主色 ${hex.toUpperCase()}`);
+      };
+    }
+
+    function renderPalette() {
+      paletteDiv.innerHTML = "";
+      palette.forEach((rgb) => {
+        const hex = rgbToHex(...rgb);
+        const textColor = getTextColor(...rgb);
+
+        const block = document.createElement("div");
+        block.className = "color-block";
+        block.style.backgroundColor = hex;
+        block.style.color = textColor;
+
+        const hsv = rgbToHsv(...rgb);
+        const lab = rgbToLab(...rgb);
+
+        block.innerHTML =
+          `<div><b>HEX:</b> ${hex.toUpperCase()}</div>` +
+          `<div><b>RGB:</b> ${rgb.join(", ")}</div>` +
+          `<div><b>HSV:</b> ${hsv.map((v) => v.toFixed(1)).join(", ")}</div>` +
+          `<div><b>Lab:</b> ${lab.map((v) => v.toFixed(1)).join(", ")}</div>`;
+
+        block.title = "点击复制此颜色 HEX";
+        block.onclick = () => {
+          navigator.clipboard.writeText(hex.toUpperCase());
+          alert(`已复制颜色 ${hex.toUpperCase()}`);
+        };
+
+        paletteDiv.appendChild(block);
+      });
+    }
+
+    // === 提取颜色主流程 ===
+    function extractColors() {
+      if (!previewImage.src) return;
+      const count = parseInt(paletteCountInput.value);
+      try {
+        mainColor = colorThief.getColor(previewImage);
+        palette = colorThief.getPalette(previewImage, count);
+      } catch (e) {
+        alert("提取失败，请确认图片已加载完成且为有效图片");
+        return;
+      }
+      renderMainColor(mainColor);
+      renderPalette();
+
+      mainColorSection.style.display = "block";
+      paletteSection.style.display = "block";
+    }
+
+    // === Viewer 初始化 ===
+    function initViewer() {
+      if (viewer) {
+        viewer.destroy();
+      }
+      viewer = new Viewer(previewImage, {
+        navbar: false,
+        toolbar: true,
+        tooltip: false,
+        movable: false,
+        zoomable: true,
+        scalable: false,
+        transition: true,
+        fullscreen: false,
+      });
+    }
+
+    // === 载入图片逻辑 ===
+    function loadImageFromFile(file) {
+      if (!file.type.startsWith("image/")) {
+        alert("请选择有效图片文件");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        loadImageSrc(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function loadImageSrc(src) {
+      previewImage.onload = () => {
+        imageContainer.style.display = "block";
+        countSection.style.display = "block";
+        mainColorSection.style.display = "none";
+        paletteSection.style.display = "none";
+        initViewer();
+        extractColors();
+        saveHistory(src, mainColor, palette);
+      };
+      previewImage.onerror = () => {
+        alert("图片加载失败，请检查链接或文件格式");
+        previewImage.src = "";
+        imageContainer.style.display = "none";
+        countSection.style.display = "none";
+        mainColorSection.style.display = "none";
+        paletteSection.style.display = "none";
+      };
+      previewImage.src = src;
+    }
+
+    // === 拖放上传支持 ===
+    uploadArea.addEventListener("click", () => fileInput.click());
+    uploadArea.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        fileInput.click();
+      }
+    });
+
+    uploadArea.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      uploadArea.style.borderColor = "var(--primary-color)";
+    });
+    uploadArea.addEventListener("dragleave", (e) => {
+      e.preventDefault();
+      uploadArea.style.borderColor = "var(--border-color)";
+    });
+    uploadArea.addEventListener("drop", (e) => {
+      e.preventDefault();
+      uploadArea.style.borderColor = "var(--border-color)";
+      if (e.dataTransfer.files.length > 0) {
+        loadImageFromFile(e.dataTransfer.files[0]);
+        fileInput.value = ""; // 清空选择文件，支持再次选同一张
+      }
+    });
+
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files.length > 0) {
+        loadImageFromFile(e.target.files[0]);
+        fileInput.value = ""; // 清空，支持重复选同一张
+      }
+    });
+
+    extractBtn.addEventListener("click", extractColors);
+
+    // === 粘贴链接加载图片 ===
+    loadUrlBtn.addEventListener("click", () => {
+      const url = imageUrlInput.value.trim();
+      if (!url) {
+        alert("请输入图片链接");
+        return;
+      }
+      // if (!/^https?:\/\/.+\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i.test(url)) {
+      //   if(!url.startsWith("data:image/")){
+      //     alert("请输入有效的图片链接或数据URL");
+      //     return;
+      //   }
+      // }
+      loadImageSrc(url);
+    });
+
+    // === 导出JSON ===
+    exportJsonBtn.addEventListener("click", () => {
+      if (!palette.length) {
+        alert("请先提取颜色");
+        return;
+      }
+      const data = {
+        mainColor: rgbToHex(...mainColor),
+        palette: palette.map((rgb) => rgbToHex(...rgb)),
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "palette.json";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    // === 导出PNG调色板 ===
+    exportPngBtn.addEventListener("click", () => {
+      if (!palette.length) {
+        alert("请先提取颜色");
+        return;
+      }
+      const canvas = document.createElement("canvas");
+      const blockSize = 80;
+      canvas.width = blockSize * palette.length;
+      canvas.height = blockSize;
+      const ctx = canvas.getContext("2d");
+
+      palette.forEach((rgb, i) => {
+        ctx.fillStyle = rgbToHex(...rgb);
+        ctx.fillRect(i * blockSize, 0, blockSize, blockSize);
+      });
+
+      canvas.toBlob((blob) => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "palette.png";
+        a.click();
+        URL.revokeObjectURL(a.href);
+      });
+    });
+
+    // === 导出SVG调色板 ===
+    exportSvgBtn.addEventListener("click", () => {
+      if (!palette.length) {
+        alert("请先提取颜色");
+        return;
+      }
+      const blockSize = 80;
+      const width = blockSize * palette.length;
+      const height = blockSize;
+      let rects = "";
+      palette.forEach((rgb, i) => {
+        const hex = rgbToHex(...rgb);
+        rects += `<rect x="${i * blockSize}" y="0" width="${blockSize}" height="${blockSize}" fill="${hex}"/>`;
+      });
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">${rects}</svg>`;
+      const blob = new Blob([svg], { type: "image/svg+xml" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "palette.svg";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    // === 历史记录管理 ===
+    const HISTORY_KEY = "colorExtractorHistory";
+
+    function saveHistory(imageSrc, mainColor, palette) {
+      if (!imageSrc || !mainColor || !palette) return;
+
+      const history = getHistory();
+
+      // 限制最大历史条数为30
+      if (history.length >= 30) {
+        history.shift();
+      }
+
+      history.push({
+        timestamp: Date.now(),
+        imageSrc,
+        mainColor: rgbToHex(...mainColor),
+        palette: palette.map((rgb) => rgbToHex(...rgb)),
+      });
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+      renderHistory();
+    }
+
+    function getHistory() {
+      const data = localStorage.getItem(HISTORY_KEY);
+      if (!data) return [];
+      try {
+        return JSON.parse(data);
+      } catch {
+        return [];
+      }
+    }
+
+    function renderHistory() {
+      const history = getHistory();
+      historyListEl.innerHTML = "";
+
+      history.forEach((item, index) => {
+        const div = document.createElement("div");
+        div.className = "history-item";
+        div.title = "点击查看此历史记录";
+
+        const img = document.createElement("img");
+        img.src = item.imageSrc;
+        img.alt = "历史记录图片";
+
+        const paletteWrapper = document.createElement("div");
+        paletteWrapper.className = "history-palette";
+
+        item.palette.forEach((hex) => {
+          const colorBlock = document.createElement("div");
+          colorBlock.className = "history-color-block";
+          colorBlock.style.backgroundColor = hex;
+          paletteWrapper.appendChild(colorBlock);
+        });
+
+        div.appendChild(img);
+        div.appendChild(paletteWrapper);
+
+        div.onclick = () => {
+          loadImageSrc(item.imageSrc);
+          paletteCountInput.value = item.palette.length;
+        };
+
+        historyListEl.appendChild(div);
+      });
+    }
+
+    clearHistoryBtn.addEventListener("click", () => {
+      if (confirm("确定清空所有历史记录吗？")) {
+        localStorage.removeItem(HISTORY_KEY);
+        renderHistory();
+      }
+    });
+
+    // 初始化显示历史记录
+    renderHistory();
+  </script>
+</body>
 </html>
